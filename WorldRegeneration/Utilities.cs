@@ -129,6 +129,10 @@ namespace WorldRegeneration
         {
             writer.Write(chest.x);
             writer.Write(chest.y);
+            /*
+                Chest c = Main.chest[Chest.FindChest(point[0].X, point[0].Y)];
+                Main.NewText(string.Concat("Chest Style: ", Main.tile[c.x, c.y].frameX / 2 / 18));
+            */
             //writer.Write(chest.name);
             for (int l = 0; l < 40; l++)
             {
@@ -136,7 +140,7 @@ namespace WorldRegeneration
                 if (item != null && item.stack > 0)
                 {
                     writer.Write((short)item.stack);
-                    writer.Write(item.netID);
+                    writer.Write(item.type);
                     writer.Write(item.prefix);
                 }
                 else
@@ -159,6 +163,11 @@ namespace WorldRegeneration
             {
                 using (var reader = new BinaryReader(new GZipStream(new FileStream(path, FileMode.Open), CompressionMode.Decompress)))
                 {
+                    if (WorldRegeneration.Config.UseInfiniteChests)
+                    {
+                        TShockAPI.Commands.HandleCommand(TSPlayer.Server, "/rconvchests");
+                        System.Threading.Thread.Sleep(5000);
+                    }
                     Main.worldSurface = reader.ReadDouble();
                     Main.rockLayer = reader.ReadDouble();
                     Main.dungeonX = reader.ReadInt32();
@@ -197,12 +206,20 @@ namespace WorldRegeneration
                                 }
                                 else if (useRect)
                                     if (rect.Contains(i, j))
-                                        Main.tile[i, j] = tile;
+                                    {
+                                        if (tile.type == 21)
+                                            WorldGen.PlaceChest(i, j, 21, false, (tile.frameX / 2) / 18);
+                                        else
+                                            Main.tile[i, j] = tile;
+                                    }
                                     else
                                         continue;
                                 else
                                 {
-                                    Main.tile[i, j] = tile; // Paste Tiles
+                                    if (tile.type == 21)
+                                        WorldGen.PlaceChest(i, j, 21, false, (tile.frameX / 2) / 18);
+                                    else
+                                        Main.tile[i, j] = tile; // Paste Tiles
                                 }
                             }
                         }
@@ -235,7 +252,7 @@ namespace WorldRegeneration
                                 }
                                 else
                                 {
-                                    Main.chest[c] = chest;
+                                    Main.chest[Chest.FindChest(chest.x, chest.y)] = chest;
                                     index++;
                                     chests++;
                                     break;
@@ -318,7 +335,7 @@ namespace WorldRegeneration
                     {
                         TSPlayer.All.SendInfoMessage("Using InfiniteChests Commands...");
                         TShockAPI.Commands.HandleCommand(TSPlayer.Server, "/convchests");
-                        System.Threading.Thread.Sleep(10000);
+                        System.Threading.Thread.Sleep(5000);
                         TShockAPI.Commands.HandleCommand(TSPlayer.Server, "/prunechests,");
                     }
 
@@ -328,7 +345,6 @@ namespace WorldRegeneration
                 }
             });
         }
-
         public static Tile ReadTile(this BinaryReader reader)
         {
             Tile tile = new Tile();
@@ -350,7 +366,6 @@ namespace WorldRegeneration
             tile.liquid = reader.ReadByte();
             return tile;
         }
-
         public static Chest ReadChest(this BinaryReader reader)
         {
             Chest chest = new Chest(false);
@@ -363,9 +378,9 @@ namespace WorldRegeneration
                 int stack = reader.ReadInt16();
                 if (stack > 0)
                 {
-                    int netID = reader.ReadInt32();
+                    int type = reader.ReadInt32();
                     byte prefix = reader.ReadByte();
-                    item.netDefaults(netID);
+                    item.SetDefaults(type);
                     item.stack = stack;
                     item.Prefix(prefix);
                 }
@@ -373,7 +388,6 @@ namespace WorldRegeneration
             }
             return chest;
         }
-
         public static Sign ReadSign(this BinaryReader reader)
         {
             Sign sign = new Sign();
@@ -382,7 +396,6 @@ namespace WorldRegeneration
             sign.y = reader.ReadInt32();
             return sign;
         }
-
         public static void ResetSection(int x, int y, int x2, int y2)
         {
             int lowX = Netplay.GetSectionX(x);
@@ -398,13 +411,18 @@ namespace WorldRegeneration
                 }
             }
         }
-
         public static void RegenerateWorld(string path)
         {
             Task.Factory.StartNew(() =>
             {
                 using (var reader = new BinaryReader(new GZipStream(new FileStream(path, FileMode.Open), CompressionMode.Decompress)))
                 {
+                    if (WorldRegeneration.Config.UseInfiniteChests)
+                    {
+                        TShockAPI.Commands.HandleCommand(TSPlayer.Server, "/rconvchests");
+                        System.Threading.Thread.Sleep(5000);
+                    }
+
                     #region Reset Specific WorldGen Data
                     WorldGen.oreTier1 = -1;
                     WorldGen.oreTier2 = -1;
@@ -448,7 +466,10 @@ namespace WorldRegeneration
                                 }
                                 else
                                 {
-                                    Main.tile[i, j] = tile;
+                                    if (tile.type == 21)
+                                        WorldGen.PlaceChest(i, j, 21, false, (tile.frameX / 2) / 18);
+                                    else
+                                        Main.tile[i, j] = tile;
                                 }
                             }
                         }
@@ -477,7 +498,7 @@ namespace WorldRegeneration
                                 }
                                 else
                                 {
-                                    Main.chest[c] = chest;
+                                    Main.chest[Chest.FindChest(chest.x, chest.y)] = chest;
                                     index++;
                                     chests++;
                                     break;

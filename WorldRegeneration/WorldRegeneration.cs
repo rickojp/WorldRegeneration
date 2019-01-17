@@ -145,7 +145,6 @@ namespace WorldRegeneration
                     Utilities.RegenerateWorld(worldPath);
                     hasWorldRegenerated = false;
                     lastWorldID = worldData.ElementAt(selectedWorld);
-
                 }
             }
         }
