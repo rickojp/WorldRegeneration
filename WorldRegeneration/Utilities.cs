@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.IO;
@@ -30,14 +30,14 @@ namespace WorldRegeneration
                 writer.Write(Main.dungeonY);
                 writer.Write(WorldGen.crimson);
 
-                writer.Write(WorldGen.CopperTierOre);
-                writer.Write(WorldGen.SilverTierOre);
-                writer.Write(WorldGen.IronTierOre);
-                writer.Write(WorldGen.GoldTierOre);
+                writer.Write(WorldGen.SavedOreTiers.Copper);
+                writer.Write(WorldGen.SavedOreTiers.Silver);
+                writer.Write(WorldGen.SavedOreTiers.Iron);
+                writer.Write(WorldGen.SavedOreTiers.Gold);
 
-                writer.Write(WorldGen.oreTier1);
-                writer.Write(WorldGen.oreTier2);
-                writer.Write(WorldGen.oreTier3);
+                writer.Write(WorldGen.SavedOreTiers.Cobalt);
+                writer.Write(WorldGen.SavedOreTiers.Mythril);
+                writer.Write(WorldGen.SavedOreTiers.Adamantite);
 
                 writer.Write(x);
                 writer.Write(y);
@@ -55,7 +55,7 @@ namespace WorldRegeneration
 
                 #region Chest Data
                 int totalChests = 0;
-                for (int i = 0; i < 1000; i++)
+                for (int i = 0; i < Main.maxChests; i++)
                 {
                     Chest chest = Main.chest[i];
                     if (chest != null)
@@ -65,7 +65,7 @@ namespace WorldRegeneration
                 }
 
                 writer.Write(totalChests);
-                for (int i = 0; i < 1000; i++)
+                for (int i = 0; i < Main.maxChests; i++)
                 {
                     Chest chest = Main.chest[i];
                     if (chest != null)
@@ -76,7 +76,7 @@ namespace WorldRegeneration
 
                 #region Sign Data
                 int totalSigns = 0;
-                for (int i = 0; i < 1000; i++)
+                for (int i = 0; i < Sign.maxSigns; i++)
                 {
                     Sign sign = Main.sign[i];
                     if (sign != null)
@@ -86,7 +86,7 @@ namespace WorldRegeneration
                 }
 
                 writer.Write(totalSigns);
-                for (int i = 0; i < 1000; i++)
+                for (int i = 0; i < Sign.maxSigns; i++)
                 {
                     Sign sign = Main.sign[i];
                     if (sign != null && sign.text != null)
@@ -134,7 +134,7 @@ namespace WorldRegeneration
                 Main.NewText(string.Concat("Chest Style: ", Main.tile[c.x, c.y].frameX / 2 / 18));
             */
             //writer.Write(chest.name);
-            for (int l = 0; l < 40; l++)
+            for (int l = 0; l < Chest.maxItems; l++)
             {
                 Item item = chest.item[l];
                 if (item != null && item.stack > 0)
@@ -174,14 +174,14 @@ namespace WorldRegeneration
                     Main.dungeonY = reader.ReadInt32();
                     WorldGen.crimson = reader.ReadBoolean();
 
-                    WorldGen.CopperTierOre = reader.ReadUInt16();
-                    WorldGen.SilverTierOre = reader.ReadUInt16();
-                    WorldGen.IronTierOre = reader.ReadUInt16();
-                    WorldGen.GoldTierOre = reader.ReadUInt16();
+                    WorldGen.SavedOreTiers.Copper = reader.ReadInt32();
+                    WorldGen.SavedOreTiers.Silver = reader.ReadInt32();
+                    WorldGen.SavedOreTiers.Iron = reader.ReadInt32();
+                    WorldGen.SavedOreTiers.Gold = reader.ReadInt32();
 
-                    WorldGen.oreTier1 = reader.ReadInt32();
-                    WorldGen.oreTier2 = reader.ReadInt32();
-                    WorldGen.oreTier3 = reader.ReadInt32();
+                    WorldGen.SavedOreTiers.Cobalt = reader.ReadInt32();
+                    WorldGen.SavedOreTiers.Mythril = reader.ReadInt32();
+                    WorldGen.SavedOreTiers.Adamantite = reader.ReadInt32();
 
                     reader.ReadInt32();
                     reader.ReadInt32();
@@ -239,7 +239,7 @@ namespace WorldRegeneration
                         for (int a = 0; a < totalChests; a++)
                         {
                             Chest chest = reader.ReadChest();
-                            for (int c = index; c < 1000; c++)
+                            for (int c = index; c < Main.maxChests; c++)
                             {
                                 if (TShock.Regions.InAreaRegion(chest.x, chest.y).Any(r => r != null && r.Z >= WorldRegeneration.Config.MaxZRegion))
                                 {
@@ -278,7 +278,7 @@ namespace WorldRegeneration
                     for (int a = 0; a < totalSigns; a++)
                     {
                         Sign sign = reader.ReadSign();
-                        for (int s = index; s < 1000; s++)
+                        for (int s = index; s < Sign.maxSigns; s++)
                         {
                             if (TShock.Regions.InAreaRegion(sign.x, sign.y).Any(r => r != null && r.Z >= WorldRegeneration.Config.MaxZRegion))
                             {
@@ -307,7 +307,7 @@ namespace WorldRegeneration
                     for (int i = 0; i < totalTileEntities; i++)
                     {
                         TileEntity tileEntity = TileEntity.Read(reader);
-                        for (int j = 0; j < 1000; j++)
+                        for (int j = 0; j < TileEntity.MaxEntitiesPerChunk; j++)
                         {
                             TileEntity entityUsed;
                             if (TileEntity.ByID.TryGetValue(j, out entityUsed))
@@ -347,10 +347,12 @@ namespace WorldRegeneration
         }
         public static Tile ReadTile(this BinaryReader reader)
         {
-            Tile tile = new Tile();
-            tile.sTileHeader = reader.ReadInt16();
-            tile.bTileHeader = reader.ReadByte();
-            tile.bTileHeader2 = reader.ReadByte();
+            var tile = new Tile
+            {
+                sTileHeader = reader.ReadInt16(),
+                bTileHeader = reader.ReadByte(),
+                bTileHeader2 = reader.ReadByte()
+            };
 
             // Tile type
             if (tile.active())
@@ -362,17 +364,19 @@ namespace WorldRegeneration
                     tile.frameY = reader.ReadInt16();
                 }
             }
-            tile.wall = reader.ReadByte();
+            tile.wall = reader.ReadUInt16();
             tile.liquid = reader.ReadByte();
             return tile;
         }
         public static Chest ReadChest(this BinaryReader reader)
         {
-            Chest chest = new Chest(false);
-            chest.x = reader.ReadInt32();
-            chest.y = reader.ReadInt32();
-            chest.name = "World Chest";
-            for (int l = 0; l < 40; l++)
+            Chest chest = new Chest(false)
+            {
+                x = reader.ReadInt32(),
+                y = reader.ReadInt32(),
+                name = string.Empty
+            };
+            for (int l = 0; l < Chest.maxItems; l++)
             {
                 Item item = new Item();
                 int stack = reader.ReadInt16();
@@ -390,10 +394,12 @@ namespace WorldRegeneration
         }
         public static Sign ReadSign(this BinaryReader reader)
         {
-            Sign sign = new Sign();
-            sign.text = reader.ReadString();
-            sign.x = reader.ReadInt32();
-            sign.y = reader.ReadInt32();
+            Sign sign = new Sign
+            {
+                text = reader.ReadString(),
+                x = reader.ReadInt32(),
+                y = reader.ReadInt32()
+            };
             return sign;
         }
         public static void ResetSection(int x, int y, int x2, int y2)
@@ -424,9 +430,9 @@ namespace WorldRegeneration
                     }
 
                     #region Reset Specific WorldGen Data
-                    WorldGen.oreTier1 = -1;
-                    WorldGen.oreTier2 = -1;
-                    WorldGen.oreTier3 = -1;
+                    WorldGen.SavedOreTiers.Cobalt = -1;
+                    WorldGen.SavedOreTiers.Mythril = -1;
+                    WorldGen.SavedOreTiers.Adamantite = -1;
                     #endregion
 
                     Main.worldSurface = reader.ReadDouble();
@@ -435,14 +441,14 @@ namespace WorldRegeneration
                     Main.dungeonY = reader.ReadInt32();
                     WorldGen.crimson = reader.ReadBoolean();
 
-                    WorldGen.CopperTierOre = reader.ReadUInt16();
-                    WorldGen.SilverTierOre = reader.ReadUInt16();
-                    WorldGen.IronTierOre = reader.ReadUInt16();
-                    WorldGen.GoldTierOre = reader.ReadUInt16();
+                    WorldGen.SavedOreTiers.Copper = reader.ReadInt32();
+                    WorldGen.SavedOreTiers.Silver = reader.ReadInt32();
+                    WorldGen.SavedOreTiers.Iron = reader.ReadInt32();
+                    WorldGen.SavedOreTiers.Gold = reader.ReadInt32();
 
-                    WorldGen.oreTier1 = reader.ReadInt32();
-                    WorldGen.oreTier2 = reader.ReadInt32();
-                    WorldGen.oreTier3 = reader.ReadInt32();
+                    WorldGen.SavedOreTiers.Cobalt = reader.ReadInt32();
+                    WorldGen.SavedOreTiers.Mythril = reader.ReadInt32();
+                    WorldGen.SavedOreTiers.Adamantite = reader.ReadInt32();
 
                     reader.ReadInt32();
                     reader.ReadInt32();
@@ -485,7 +491,7 @@ namespace WorldRegeneration
                         for (int a = 0; a < totalChests; a++)
                         {
                             Chest chest = reader.ReadChest();
-                            for (int c = index; c < 1000; c++)
+                            for (int c = index; c < Main.maxChests; c++)
                             {
                                 if (TShock.Regions.InAreaRegion(chest.x, chest.y).Any(r => r != null && r.Z >= WorldRegeneration.Config.MaxZRegion))
                                 {
@@ -522,7 +528,7 @@ namespace WorldRegeneration
                     for (int a = 0; a < totalSigns; a++)
                     {
                         Sign sign = reader.ReadSign();
-                        for (int s = index; s < 1000; s++)
+                        for (int s = index; s < Sign.maxSigns; s++)
                         {
                             if (TShock.Regions.InAreaRegion(sign.x, sign.y).Any(r => r != null && r.Z >= WorldRegeneration.Config.MaxZRegion))
                             {
@@ -550,7 +556,7 @@ namespace WorldRegeneration
                     for (int i = 0; i < totalTileEntities; i++)
                     {
                         TileEntity tileEntity = TileEntity.Read(reader);
-                        for (int j = 0; j < 1000; j++)
+                        for (int j = 0; j < TileEntity.MaxEntitiesPerChunk; j++)
                         {
                             TileEntity entityUsed;
                             if (TileEntity.ByID.TryGetValue(j, out entityUsed))
